@@ -1,5 +1,5 @@
-# Phytium-Pi-Robot
-飞腾派机器人实验指导书
+# Introduction
+
 本指导书仍在撰写和调整中
 
 [Introduction](README.md)

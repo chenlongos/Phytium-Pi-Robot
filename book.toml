@@ -1,0 +1,9 @@
+[book]
+title = "飞腾派机器人开发实验指导书"
+author = "opencamp 社区"
+language = "zh-CN"
+src = "src"
+
+
+[output.html]
+no-section-label = true
