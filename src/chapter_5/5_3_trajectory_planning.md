@@ -1,57 +1,60 @@
-# 5.3 轨迹规划技术
+# 5.3 与视觉系统集成
 
-### 关节空间轨迹规划
+### 网球定位
 
-关节空间规划直接控制各关节角度，计算简单但路径不可预测：
+在项目中，通过颜色检测定位网球位置：
 
-```python
-def joint_space_move(target_angles, duration):
-    start_angles = get_current_angles()
-    steps = int(duration * 100)  # 100Hz控制频率
-    
-    for i in range(steps):
-        # 线性插值
-        ratios = [i/steps for _ in range(4)]
-        current_angles = [
-            start + ratio * (target - start)
-            for start, target, ratio in zip(start_angles, target_angles, ratios)
-        ]
+```
+# mycv/color.py
+class ColorDetector:
+    def process(self, frame):
+        # ...图像处理...
+        for cnt in contours:
+            # ...轮廓分析...
+            if area > self.min_area and area < self.max_area and circularity > 0.8:
+                # 计算网球中心位置
+                center_x = x + w // 2
+                center_y = y + h // 2
+                
+                # 保存检测结果
+                data.append([x, y, w, h])
         
-        set_joint_angles(current_angles)
-        time.sleep(0.01)
+        return processed_frame, mask, data
 ```
 
-### 笛卡尔空间轨迹规划
+### 位置判断逻辑
 
-笛卡尔空间规划控制末端执行器位置，路径可预测但计算复杂：
+在抓取决策中，使用网球在图像中的位置和大小进行判断：
 
-```python
-def cartesian_space_move(target_pose, duration):
-    start_pose = get_current_pose()
-    steps = int(duration * 100)
+```
+# color_detect.py
+def test():
+    # ...初始化...
+    IMGW = 640   # 图像宽度
+    IMGH = 480   # 图像高度
+    WIDTH_THRESHOLD = 150  # 目标宽度阈值
+    EDGE_DEVIATION = 40    # 边缘偏移容差
     
-    for i in range(steps):
-        ratio = i / steps
-        # 线性插值位置
-        current_position = [
-            start + ratio * (target - start)
-            for start, target in zip(start_pose[:3], target_pose[:3])
-        ]
-        
-        # 球面线性插值姿态
-        current_orientation = slerp(start_pose[3:], target_pose[3:], ratio)
-        
-        # 逆运动学求解关节角度
-        joint_angles = inverse_kinematics(current_position + current_orientation)
-        
-        set_joint_angles(joint_angles)
-        time.sleep(0.01)
+    while True:
+        # ...获取检测数据...
+        for xywh in data[:1]:
+            leftEdge = int(xywh[0])
+            rightEdge = IMGW - int(xywh[2]) - int(xywh[0])
+            width = int(xywh[2])
+            
+            # 计算位置偏移
+            difference = leftEdge - rightEdge
+            
+            # 根据位置和大小判断动作
+            if difference < -1 * EDGE_DEVIATION:
+                cmd = 'turn_right'  # 需要右转
+            elif difference > EDGE_DEVIATION:
+                cmd = 'turn_left'   # 需要左转
+            elif width < WIDTH_THRESHOLD - WIDTH_DEVIATION:
+                cmd = 'advance'     # 需要前进
+            elif width > WIDTH_THRESHOLD + WIDTH_DEVIATION:
+                cmd = 'back'        # 需要后退
+            else:
+                cmd = 'stop'        # 满足抓取条件
 ```
 
-### 避奇异点策略
-
-机械臂在奇异点附近会出现运动不稳定问题，我们采用以下策略：
-
-1. **速度限制**：接近奇异点时降低运动速度
-2. **路径优化**：规划绕过奇异点的路径
-3. **关节限位**：设置关节运动范围避开奇异区域

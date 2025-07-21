@@ -2,103 +2,90 @@
 
 ### 节点开发规范
 
-Dora节点开发遵循统一接口：
+在项目中节点开发遵循统一接口：
 
 ```python
-class CustomNode:
-    def __init__(self, config):
-        """初始化配置"""
-        self.config = config
+# mycv/color.py中的节点实现
+class ColorDetector:
+    def __init__(self, lower_hsv, upper_hsv, min_area=300):
+        self.lower = np.array(lower_hsv)
+        self.upper = np.array(upper_hsv)
+        self.min_area = min_area
+
+    def process(self, frame):
+        # 图像处理逻辑
+        return processed_frame, mask, data
+
+def main():
+    node = Node()
+    dector = ColorDetector([30, 70, 80], [50, 255, 255], min_area=50)
     
-    def on_event(self, event):
-        """事件处理入口"""
-        if event['type'] == 'INPUT':
-            self.handle_input(event)
-        elif event['type'] == 'TIMER':
-            self.handle_timer(event)
-    
-    def handle_input(self, event):
-        """处理输入数据"""
-        data = event['data']
-        # 处理逻辑...
-        self.send_output('result', processed_data)
-    
-    def destroy(self):
-        """资源清理"""
-        pass
+    for event in node:
+        if event["type"] == "INPUT" and event["id"] == "image":
+            image = process_image(event["value"], event["metadata"])
+            processed_frame, mask, data = dector.process(image)
+            node.send_output("image", pa.array(processed_frame.ravel()), event["metadata"])
+            node.send_output("mask", pa.array(mask.ravel()), event["metadata"])
+            node.send_output("data", Calculate.to_pa_array(data))
 ```
 
 ### 数据流拓扑构建
 
-Dora使用YAML定义数据流拓扑：
+在项目中，使用YAML定义数据流拓扑：
 
 ```yaml
-# car_cv.yaml
+# car_cv.yaml中的拓扑
 nodes:
-  - id: video_capture
-    path: nodes/video.py
-    inputs:
-      tick: dora/timer/millis/33  # 30FPS
-    outputs:
-      - image
-      
-  - id: ball_detector
-    path: nodes/detector.py
-    inputs:
-      image: video_capture/image
-    outputs:
-      - position
-      
-  - id: controller
-    path: nodes/controller.py
-    inputs:
-      position: ball_detector/position
-    outputs:
-      - motor_cmd
+  - id: opencv-video-capture
+    inputs: [tick]
+    outputs: [image]
+    
+  - id: color
+    inputs: [image]
+    outputs: [image, data, mask]
+    
+  - id: car_cv
+    inputs: [data]
+    outputs: [task, move]
+    
+  - id: motor
+    inputs: [move]
+    outputs: []
 ```
 
 ### 性能优化技巧
 
-1. **批处理优化**：合并小数据包减少通信开销
+在项目中，使用多种优化技术提升性能：
 
-   ```python
-   def on_event(self, event):
-       if event['type'] == 'TIMER':
-           # 定时批量处理
-           self.process_batch()
-   ```
+```python
+# car_cv.py中的性能优化
+class CarCV:
+    def handle_target_found(self, x, y, ratio, current_time, node):
+        # 低通滤波器平滑数据
+        x_offset = self.low_pass_filter(x - self.center_x, self.last_x_offset)
+        y_offset = self.low_pass_filter(y - self.center_y, self.last_y_offset)
+        
+        # PID控制器优化速度
+        speed = self.pid_distance.compute(target_ratio, current_ratio, dt)
+        
+        # 限制速度变化率
+        max_speed_change = self.max_acceleration * time_delta
+        speed = self.current_speed + max_speed_change * sign
+        
+        # 确保速度在合理范围内
+        speed = max(self.min_speed, min(speed, self.max_speed))
+```
 
-2. **数据压缩**：对图像等大数据启用压缩
+## 关键函数总结表
 
-   ```python
-   self.send_output('image', frame, compress='jpeg', quality=80)
-   ```
+| 函数                        | 参数                              | 返回值                        | 功能描述         | 项目位置            |
+| :-------------------------- | :-------------------------------- | :---------------------------- | :--------------- | :------------------ |
+| `ColorDetector.process()`   | frame: ndarray                    | (processed_frame, mask, data) | 网球检测处理     | mycv/color.py       |
+| `CarCV.process_data()`      | data: List[Calculate], node: Node | MoveData                      | 决策生成运动指令 | car_cv.py           |
+| `ModbusMotor.Control()`     | data: MoveData                    | None                          | 电机控制         | motor/Motor.py      |
+| `MoveData.to_arrow_array()` | 无                                | pa.Array                      | 序列化运动数据   | common/move_data.py |
+| `Calculate.from_pa_array()` | pa_array: pa.Array                | List[Calculate]               | 反序列化检测数据 | common/calculate.py |
+| `translate_image()`         | data, metadata                    | ndarray                       | 零拷贝图像处理   | untils/untils.py    |
 
-3. **零拷贝共享**：使用共享内存传递大数据
 
-   ```python
-   # 创建共享内存缓冲区
-   shm = dora.create_shared_buffer('video_frame', 1024 * 1024)
-   
-   # 写入数据
-   with shm.write_lock() as buffer:
-       buffer[:len(frame)] = frame
-   ```
 
-4. **异步处理**：非关键任务异步执行
-
-   ```python
-   async def process_frame_async(frame):
-       # 异步处理
-       result = await heavy_computation(frame)
-       return result
-   ```
-
-## 小结
-
-Dora-RS框架是网球捡拾小车系统的核心基础设施。本章详细解析了其数据流驱动的架构设计、核心组件实现原理、高效通信机制以及实际应用技巧。通过Dora框架，我们实现了：
-
-- 视觉采集、识别、控制模块的解耦
-- 系统资源的高效利用
-- 实时性能的保障
-- 系统的可扩展性和可维护性

@@ -1,67 +1,65 @@
-## 4.3 运动控制算法
+# 4.3 运动控制算法
 
 ### PID控制器实现
 
-PID（比例-积分-微分）控制器是工业控制中最常用的算法：
+PID（比例-积分-微分）控制器是工业控制中最常用的算法，PID控制器用于精确控制：
 
 ```python
-class PIDController:
-    def __init__(self, Kp, Ki, Kd, setpoint):
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        self.setpoint = setpoint
-        self.prev_error = 0
-        self.integral = 0
+# car_cv.py - PID控制器
+from simple_pid import PID
+
+class CarCV:
+    def __init__(self):
+        # 添加PID控制器
+        self.pid_distance = PID(Kp=1.0, Ki=0.1, Kd=0.05, setpoint=1)
+        self.pid_distance.output_limits = (1.0, 5.0)  # 限制输出范围
         
-    def compute(self, measured_value):
-        error = self.setpoint - measured_value
-        self.integral += error
-        derivative = error - self.prev_error
-        output = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
-        self.prev_error = error
-        return output
+        # 速度平滑参数
+        self.current_speed = 0.0
+        self.max_acceleration = 0.5  # 最大加速度
+        self.max_speed = 25  # 最大速度
+        self.min_speed = 6   # 最小速度
+    
+    def handle_target_found(self, x, y, ratio, current_time, node):
+        """处理发现网球的情况"""
+        # 使用PID控制器计算速度
+        if ratio_proportion < 0.6:  # 目标比率阈值
+            # 使用PID控制器计算速度调整量
+            pid_output = self.pid_distance(ratio_proportion)
+            # 使用非线性映射
+            speed_factor = ((0.6 - ratio_proportion) / 0.6) ** 0.7
+            # 基础速度 + 非线性调整的速度
+            speed = self.min_speed + (self.max_speed - self.min_speed) * speed_factor * pid_output
+            
+            # 应用速度平滑处理
+            time_delta = current_time - self.last_speed_update_time
+            self.last_speed_update_time = current_time
+            
+            # 限制速度变化率
+            max_speed_change = self.max_acceleration * time_delta
+            speed_diff = speed - self.current_speed
+            if abs(speed_diff) > max_speed_change:
+                speed = self.current_speed + max_speed_change * (1 if speed_diff > 0 else -1)
+            
+            self.current_speed = speed
+        
+        # 确保速度在合理范围内
+        speed = max(self.min_speed, min(speed, self.max_speed))
+        
+        # 根据位置偏移控制移动
+        if abs(x_offset) > 50:  # 水平偏移较大
+            if x_offset > 0:
+                return turn_left(node, 8)  # 左转
+            else:
+                return turn_right(node, 8) # 右转
+        elif ratio_proportion > 0.95:  # 非常接近目标
+            return stop(node)  # 停止
+        elif y_offset > 10:  # 目标在下方
+            return back(node, int(speed))
+        elif y_offset < -10:  # 目标在上方
+            return advance(node, int(speed))
+        else:
+            return stop(node)
 ```
 
-### 双闭环控制系统
-
-我们采用速度环+位置环的双闭环控制结构：
-
-```markdown
-位置指令 → 位置PID → 速度指令 → 速度PID → 电机驱动
-      ↑位置反馈          ↑速度反馈
-```
-
-- **位置环**：控制小车到达目标位置
-- **速度环**：控制电机达到指定转速
-
-### 轨迹跟踪算法
-
-对于网球捡拾任务，我们实现了简单的轨迹跟踪：
-
-```python
-def follow_trajectory(current_pos, target_pos):
-    # 计算位置偏差
-    dx = target_pos[0] - current_pos[0]
-    dy = target_pos[1] - current_pos[1]
-    
-    # 计算目标方向
-    target_angle = atan2(dy, dx)
-    
-    # 角度偏差
-    angle_error = target_angle - current_pos[2]
-    
-    # 距离目标距离
-    distance = sqrt(dx*dx + dy*dy)
-    
-    # 双PID控制
-    angle_output = angle_pid.compute(angle_error)
-    speed_output = speed_pid.compute(distance)
-    
-    # 转换为左右轮速
-    left_speed = speed_output - angle_output
-    right_speed = speed_output + angle_output
-    
-    return left_speed, right_speed
-```
 

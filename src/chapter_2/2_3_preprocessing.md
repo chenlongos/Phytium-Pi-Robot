@@ -1,31 +1,51 @@
 # 2.3 图像预处理技术详解
+
 ### 高斯模糊降噪
 
+在项目中，我们使用高斯模糊减少图像噪声：
+
 ```python
-blurred = cv2.GaussianBlur(image, (5, 5), 0)
+# 在mycv/color.py中
+blurred_img = cv2.GaussianBlur(frame, (5, 5), 0)
 ```
 
-- **原理**：使用高斯函数计算邻域像素的加权平均值
-- **作用**：减少图像噪声，平滑细节
-- **参数说明**：(5,5)是核大小，0是标准差(自动计算)
+- **函数**: `cv2.GaussianBlur(src, ksize, sigmaX)`
+- 参数:
+  - `src`: 输入图像
+  - `ksize`: 高斯核大小 (宽度, 高度)，必须是正奇数
+  - `sigmaX`: X方向标准差，0表示自动计算
+- **返回值**: 模糊后的图像
+- **作用**: 减少图像噪声，平滑细节
 
 ### 中值滤波
 
+项目中进一步使用中值滤波去除噪声：
+
 ```python
-median = cv2.medianBlur(image, 5)
+median_blur = cv2.medianBlur(blurred_img, 5)
 ```
 
-- **原理**：取邻域像素的中值作为中心像素值
-- **作用**：有效去除椒盐噪声
-- **与高斯模糊区别**：更擅长处理脉冲噪声，但计算量更大
+- **函数**: `cv2.medianBlur(src, ksize)`
+- 参数:
+  - `src`: 输入图像
+  - `ksize`: 滤波孔径大小，必须是大于1的奇数
+- **返回值**: 滤波后的图像
+- **作用**: 有效去除椒盐噪声
 
 ### 形态学操作
 
+项目中应用形态学操作优化掩膜：
+
 ```python
-kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+# 开运算去除小噪点
+mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel, iterations=1)
+
+# 闭运算填充孔洞
+mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel, iterations=3)
+
+# 二次开运算平滑边缘
+mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel, iterations=2)
 ```
 
-- **开运算**：先腐蚀后膨胀，去除小噪点
-- **闭运算**：先膨胀后腐蚀，填充小孔洞
-- **结构元素**：定义操作形状和大小的核
+- **操作序列**：开-闭-开组合优化掩膜质量
+- **迭代次数**：闭运算3次确保填充网球内部空洞

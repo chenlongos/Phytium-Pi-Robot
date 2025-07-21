@@ -1,73 +1,131 @@
-## 4.4 底盘控制系统集成
-
-### 串口通信协议
-
-底盘控制器（STM32）与主控板（飞腾派）通过串口通信：
-
-```markdown
-协议格式：<STX> [CMD] [LEN] [DATA] [CHK] <ETX>
-- STX: 起始字节(0xAA)
-- CMD: 命令字节
-- LEN: 数据长度
-- DATA: 数据内容
-- CHK: 校验和
-- ETX: 结束字节(0x55)
-```
+# 4.4 底盘控制系统集成
 
 ### 状态机实现
 
-底盘控制采用有限状态机模型：
+在项目中使用状态机管理底盘状态：
 
 ```python
-class ChassisStateMachine:
-    STATES = {
-        'IDLE': 0,
-        'MOVING': 1,
-        'ROTATING': 2,
-        'EMERGENCY': 3
-    }
-    
+# car_cv.py - 状态机实现
+class CarCV:
     def __init__(self):
-        self.state = self.STATES['IDLE']
+        self.lost_count = 20
+        self.max_lost_frames = 20
+        self.target_found = False
+        self.search_direction = 1
+        self.search_start_time = 0
+    
+    def process_data(self, data: List[Calculate], node=None) -> MoveData:
+        """处理目标检测数据并生成运动指令"""
+        current_time = time.time()
         
-    def handle_event(self, event):
-        if self.state == self.STATES['IDLE']:
-            if event == 'START_MOVE':
-                self.start_moving()
-            elif event == 'START_ROTATE':
-                self.start_rotating()
-                
-        elif self.state == self.STATES['MOVING']:
-            if event == 'TARGET_REACHED':
-                self.stop()
-            elif event == 'OBSTACLE_DETECTED':
-                self.emergency_stop()
-                
-        # ...其他状态转换
+        if len(data) == 0:
+            return self.handle_target_lost(current_time, node)
+        else:
+            return self.handle_target_found(
+                data[0].x, data[0].y, data[0].ratio, current_time, node
+            )
+    
+    def handle_target_lost(self, current_time, node):
+        """处理目标丢失情况"""
+        self.lost_count += 1
+        self.target_found = False
+        
+        if self.lost_count >= self.max_lost_frames:
+            self.search_start_time = current_time
+            # 确定搜索方向
+            if self.last_valid_position and self.last_valid_position[0] > 320:  # 屏幕宽度640
+                self.search_direction = 1  # 向右搜索
+            else:
+                self.search_direction = -1  # 向左搜索
+            
+            search_time = current_time - self.search_start_time
+            
+            if self.search_direction > 0:
+                return turn_left(node)
+            else:
+                return turn_right(node)
+        else:
+            return stop(node)
 ```
 
-### 安全保护机制
+### 运动控制接口
 
-1. **超时保护**：指令执行超过设定时间自动停止
-2. **碰撞检测**：通过电流突变检测碰撞
-3. **边界限制**：设置运动范围边界
-4. **紧急停止按钮**：硬件级急停开关
+```
+# car_cv.py - 运动控制接口
+from common.move_data import MoveData
+
+def send(node: Node, direction, speed) -> MoveData:
+    """发送运动数据"""
+    data = MoveData(direction, speed).to_arrow_array()
+    if node != None:
+        node.send_output("move", data)
+    return MoveData(direction, speed)
+
+def stop(node: Node) -> MoveData:
+    return send(node, 0, 0)
+
+def advance(node: Node, speed=2) -> MoveData:
+    return send(node, 1, speed)
+
+def back(node: Node, speed=2) -> MoveData:
+    return send(node, 2, speed)
+
+def turn_left(node: Node, speed=20) -> MoveData:
+    return send(node, 5, speed)
+
+def turn_right(node: Node, speed=20) -> MoveData:
+    return send(node, 6, speed)
+```
 
 ### 性能优化技巧
 
-1. **指令缓冲**：使用队列缓存指令，避免丢失
-2. **速度斜坡**：限制加速度，使运动更平滑
-3. **预测控制**：基于当前状态预测未来位置
-4. **动态参数调整**：根据负载自动调整PID参数
+```
+# car_cv.py - 性能优化
+class CarCV:
+    def low_pass_filter(self, new_value, last_value):
+        """低通滤波器"""
+        alpha = 0.2  # 平滑因子
+        return alpha * new_value + (1 - alpha) * last_value
+    
+    def handle_target_found(self, x, y, ratio, current_time, node):
+        """处理发现网球的情况（优化版）"""
+        # 应用低通滤波
+        x_offset = self.low_pass_filter(x - self.center_x, self.last_x_offset)
+        y_offset = self.low_pass_filter(y - self.center_y, self.last_y_offset)
+        
+        # 更新上一次的值
+        self.last_x_offset = x_offset
+        self.last_y_offset = y_offset
+        
+        # 简化计算
+        ratio_proportion = ratio / 0.032  # 目标比率值
+        
+        # 使用查表法替代复杂计算
+        speed = self.speed_lookup_table(ratio_proportion)
+        
+        # ...后续控制逻辑...
+    
+    def speed_lookup_table(self, ratio):
+        """速度查表法优化"""
+        if ratio > 0.9:
+            return 0
+        elif ratio > 0.7:
+            return self.min_speed
+        elif ratio > 0.5:
+            return self.min_speed + 5
+        else:
+            return self.max_speed
+```
 
-## 小结
+### 关键函数总结
 
-底盘运动控制是网球捡拾小车的核心子系统。本章详细介绍了差速转向原理、驱动电路设计、PID控制算法实现以及系统集成方案。通过精确的运动控制，小车能够准确移动到网球位置，为后续的捡拾操作奠定基础。
-
-> **关键要点回顾**：
->
-> 1. 差速转向模型是轮式机器人的基础运动原理
-> 2. H桥电路实现了电机的正反转和调速控制
-> 3. PID控制器提供了精确的速度和位置控制
-> 4. 状态机模型使控制系统更加可靠和安全
+| 函数                          | 参数         | 返回值        | 功能描述     | 项目位置       |
+| :---------------------------- | :----------- | :------------ | :----------- | :------------- |
+| `PCA9685Motor.Control()`      | MoveData对象 | 无            | 控制电机运动 | motor/Motor.py |
+| `PCA9685Motor.set_pwm()`      | 四个PWM值    | 无            | 设置电机PWM  | motor/Motor.py |
+| `Odometry.update()`           | 左右轮距离   | (x, y, theta) | 更新位姿估计 | motor/main.py  |
+| `CarCV.process_data()`        | 目标检测数据 | MoveData      | 生成运动指令 | car_cv.py      |
+| `CarCV.handle_target_found()` | 目标位置数据 | MoveData      | 处理发现目标 | car_cv.py      |
+| `send()`                      | 方向,速度    | MoveData      | 发送运动指令 | car_cv.py      |
+| `low_pass_filter()`           | 新值,旧值    | 滤波后值      | 数据平滑处理 | car_cv.py      |
 

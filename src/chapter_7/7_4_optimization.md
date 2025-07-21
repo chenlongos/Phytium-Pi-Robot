@@ -1,107 +1,86 @@
 # 7.4 系统性能优化
 
-### 资源占用分析工具
+### 资源监控工具
 
-使用内置工具监控资源：
+项目中实现资源监控功能：
 
 ```python
-import resource
-import psutil
-
-def log_resource_usage():
-    # 内存使用
-    mem = psutil.virtual_memory()
-    # CPU使用
-    cpu_percent = psutil.cpu_percent(interval=1)
-    # 线程数
-    thread_count = threading.active_count()
-    
-    logger.info(f"资源使用: 内存 {mem.percent}%, CPU {cpu_percent}%, 线程 {thread_count}")
+# 在control.py中添加资源监控
+@app.route('/api/system_status')
+def system_status():
+    import psutil
+    cpu_percent = psutil.cpu_percent()
+    memory = psutil.virtual_memory()
+    return jsonify({
+        "cpu": cpu_percent,
+        "memory": memory.percent,
+        "memory_used": memory.used // (1024 * 1024),  # MB
+        "memory_total": memory.total // (1024 * 1024)  # MB
+    })
 ```
 
 ### 关键路径优化
 
-识别并优化性能瓶颈：
+识别并优化关键路径：
 
 ```python
-# 使用cProfile分析性能
-import cProfile
-
-def profile_func():
-    pr = cProfile.Profile()
-    pr.enable()
-    
-    # 执行待分析代码
-    main_processing_loop()
-    
-    pr.disable()
-    pr.print_stats(sort='cumulative')
+# mycv/color.py中的性能优化
+class ColorDetector:
+    def process(self, frame):
+        # 1. 降低分辨率
+        small_frame = cv2.resize(frame, (320, 240))
+        
+        # 2. 限定处理区域 (ROI)
+        h, w = small_frame.shape[:2]
+        roi = small_frame[h//4:3*h//4, w//4:3*w//4]
+        
+        # 3. 简化处理流程
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, self.lower, self.upper)
+        
+        # 4. 优化形态学操作
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        
+        # 5. 快速轮廓查找
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # 后续处理...
 ```
-
-优化策略：
-
-1. **算法优化**：将O(n²)算法替换为O(n log n)
-
-2. **内存复用**：避免频繁内存分配
-
-   ```python
-   # 重用图像缓冲区
-   frame_buffer = np.zeros((480, 640, 3), dtype=np.uint8)
-   while True:
-       camera.read(frame_buffer)  # 重用缓冲区
-   ```
-
-3. **并行计算**：使用多线程/多进程
-
-   ```python
-   from concurrent.futures import ThreadPoolExecutor
-   
-   with ThreadPoolExecutor(max_workers=4) as executor:
-       future1 = executor.submit(process_image, frame)
-       future2 = executor.submit(update_position, sensors)
-   ```
 
 ### 实时性提升策略
 
-确保系统满足实时性要求：
+在项目中，实现实时性保障措施：
 
-1. 优先级提升：
+```python
+# color_detect.py中的实时性优化
+def test():
+    # 设置进程优先级
+    os.nice(-10)  # 提高进程优先级
+    
+    # 主循环
+    while True:
+        start_time = time.time()
+        
+        # 处理帧
+        # ...
+        
+        # 控制处理频率
+        elapsed = time.time() - start_time
+        if elapsed < 0.05:  # 20fps
+            time.sleep(0.05 - elapsed)
+```
 
-   ```bash
-   # 设置高优先级
-   sudo nice -n -20 python3 main.py
-   ```
+### 关键函数总结表
 
-2. CPU绑定：
+| 函数                           | 参数       | 返回值                  | 功能描述       | 项目位置            |
+| :----------------------------- | :--------- | :---------------------- | :------------- | :------------------ |
+| `CarCV.process_data()`         | data, node | MoveData                | 状态机决策     | car_cv.py           |
+| `MoveData.to_arrow_array()`    | 无         | pa.Array                | 序列化运动指令 | common/move_data.py |
+| `SerialManager.send_command()` | command    | 无                      | 安全串口通信   | color_detect.py     |
+| `setup_logger()`               | 无         | logger                  | 日志系统初始化 | color_detect.py     |
+| `generate_frames()`            | 无         | 生成器                  | 视频流生成     | control.py          |
+| `ColorDetector.process()`      | frame      | (processed, mask, data) | 优化网球检测   | mycv/color.py       |
+| `system_status()`              | 无         | JSON                    | 系统资源监控   | control.py          |
 
-   ```python
-   import os
-   import psutil
-   
-   p = psutil.Process(os.getpid())
-   p.cpu_affinity([0, 1])  # 绑定到CPU0和1
-   ```
-
-3. 内存锁定：
-
-   ```python
-   import ctypes
-   libc = ctypes.CDLL("libc.so.6")
-   libc.mlockall(0x2)  # 锁定当前内存
-   ```
-
-## 小结
-
-系统集成与优化是确保网球捡拾小车稳定高效运行的关键。本章详细介绍了多模块协同架构的设计、服务化部署方案、Web控制平台的实现以及系统性能优化策略。通过这些技术，我们实现了：
-
-1. **高可靠性**：系统服务化部署确保24/7运行
-2. **实时监控**：Web平台提供全方位监控能力
-3. **性能卓越**：优化后处理延迟<100ms
-4. **资源高效**：CPU利用率降低30%，内存占用减少40%
-
-> **集成优化要点**：
->
-> 1. 全局状态机统一管理系统行为
-> 2. 原子操作和锁机制确保数据一致性
-> 3. 服务化部署提供生产级可靠性
-> 4. 多级优化策略全面提升性能

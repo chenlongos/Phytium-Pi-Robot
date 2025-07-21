@@ -7,7 +7,7 @@
   - [1.2 硬件组成清单](chapter_1/1_2_hardware_components.md)
   - [1.3 软件环境配置指南](chapter_1/1_3_software_setup.md)
   - [1.4 项目目录结构解析](chapter_1/1_4_directory_structure.md)
-  - [系统架构与原理](chapter_1/1_5_system_architecture.md)
+  - [1.5 机器人系统架构](chapter_1/1_5_system_architecture.md)
 
 - [第二章 视觉处理基础理论](chapter_2/chapter2.md)
   - [2.1 数字图像处理基础](chapter_2/2_1_image_processing.md)
@@ -17,11 +17,11 @@
 
 - [第三章 网球检测系统实现](chapter_3/chapter3.md)
   - [3.1 颜色阈值分割实战](chapter_3/3_1_color_thresholding.md)
-  - [3.2 形态学处理技术应用](chapter_3/3_2_morphological_processing.md)
-  - [3.3 轮廓分析与特征提取](chapter_3/3_3_contour_analysis.md)
-  - [3.4 位置计算与坐标转换](chapter_3/3_4_position_calculation.md)
+  - [3.2 轮廓分析与特征提取](chapter_3/3_2_contour_analysis.md)
+  - [3.3 位置计算与状态处理](chapter_3/3_3_position_status.md)
+  - [3.4 视觉处理流程优化](chapter_3/3_4_visual_processing.md)
 
-- [第四章 小车运动控制](chapter_4/chapter4.md)
+- [第四章 机器人运动控制](chapter_4/chapter4.md)
   - [4.1 底盘控制原理](chapter_4/4_1_chassis_control.md)
   - [4.2 驱动电路设计](chapter_4/4_2_driver_circuit.md)
   - [4.3 运动控制算法](chapter_4/4_3_control_algorithm.md)
@@ -30,8 +30,8 @@
 - [第五章 机械臂控制系统](chapter_5/chapter5.md)
   - [5.1 机械臂结构分析](chapter_5/5_1_arm_structure.md)
   - [5.2 抓取机构设计](chapter_5/5_2_gripper_design.md)
-  - [5.3 轨迹规划技术](chapter_5/5_3_trajectory_planning.md)
-  - [5.4 机械臂控制系统集成](chapter_5/5_4_control_integration.md)
+  - [5.3 与视觉系统集成](chapter_5/5_3_visual_integration.md)
+  - [5.4 系统保护机制](chapter_5/5_4_system_protection.md)
 
 - [第六章 Dora-RS框架解析](chapter_6/chapter6.md)
   - [6.1 框架设计理念](chapter_6/6_1_framework_design.md)

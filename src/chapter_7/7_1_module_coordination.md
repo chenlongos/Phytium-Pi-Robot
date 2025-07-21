@@ -2,61 +2,76 @@
 
 ### 系统集成挑战与解决方案
 
-网球捡拾小车是一个复杂的多模块系统，集成过程中面临三大核心挑战：
+在项目中，我们实现了以下解决方案来处理多模块协同问题：
 
-1. **时序同步问题**：
+**时序同步解决方案**：
 
-   - **现象**：视觉识别、底盘运动和机械臂动作不同步
+- **现象**：视觉识别、底盘运动和机械臂动作不同步
+- 解决方案：
 
-   - 解决方案：
+```python
+# car_cv.py中的时间戳处理
+class CarCV:
+    def __init__(self):
+        self.last_command_time = time.time()
+        self.command_interval = 0.05  # 50ms指令间隔
+    
+    def process_data(self, data: List[Calculate], node=None) -> MoveData:
+        current_time = time.time()
+        
+        # 确保指令间隔
+        if current_time - self.last_command_time > self.command_interval:
+            # 处理数据...
+            self.last_command_time = current_time
+            return command
+        return None
+```
 
-     ```python
-     # 基于硬件时间戳的同步机制
-     def process_frame():
-         frame = camera.capture()
-         frame.timestamp = time.monotonic_ns()  # 纳秒级时间戳
-         return frame
-     
-     # 各模块使用相同时间基准
-     current_time = time.monotonic_ns()
-     ```
+**数据一致性解决方案**：
 
-2. **数据一致性难题**：
+- **现象**：网球位置在传输过程中发生变化
 
-   - **现象**：网球位置在传输过程中发生变化
+- 解决方案：
 
-   - 解决方案：
+```python
+# common/move_data.py中的序列化处理
+class MoveData:
+    def to_arrow_array(self) -> pa.Array:
+        """确保数据格式一致"""
+        return pa.array([self.direction, self.speed])
+    
+    @classmethod
+    def from_arrow_array(cls, array: pa.Array) -> "MoveData":
+        """反序列化保证数据一致"""
+        data_list = array.to_pylist()
+        return cls(data_list[0], data_list[1])
+```
 
-     ```python
-     # 使用原子操作更新共享数据
-     import threading
-     ball_position = [0, 0]
-     position_lock = threading.Lock()
-     
-     def update_position(new_pos):
-         with position_lock:
-             ball_position[:] = new_pos
-     ```
+**资源竞争解决方案**：
 
-3. **资源竞争冲突**：
+- **现象**：多个模块同时访问摄像头或串口
 
-   - **现象**：多个模块同时访问摄像头或串口
+- 解决方案：
 
-   - 解决方案：
+```python
+# color_detect.py中的串口资源管理
+class SerialManager:
+    def __init__(self, port):
+        self.ser = serial.Serial(port, 9600)
+        self.lock = threading.Lock()
+    
+    def send_command(self, command):
+        with self.lock:  # 确保串口访问互斥
+            self.ser.write(command.encode())
+    
+    def __del__(self):
+        self.ser.close()
 
-     ```python
-     # 资源管理器模式
-     class ResourceManager:
-         def __init__(self):
-             self.lock = threading.RLock()
-         
-         @contextmanager
-         def use_camera(self):
-             with self.lock:
-                 yield camera
-     ```
+# 在main中使用
+ser_mgr = SerialManager('/dev/ttyAMA2')
+```
 
-### 系统状态管理
+### 系统状态机实现（）
 
 我们设计了一个全局状态机管理整个系统：
 
@@ -72,35 +87,37 @@ stateDiagram-v2
     SEARCHING --> SHUTDOWN: 任务完成
 ```
 
-状态转换代码实现：
+
+
+在项目中，全局状态机管理整个系统行为：
 
 ```python
-class SystemStateMachine:
+# car_cv.py中的状态机实现
+class CarCV:
     def __init__(self):
-        self.state = "BOOTING"
-        self.transitions = {
-            "BOOTING": self.handle_booting,
-            "CALIBRATING": self.handle_calibrating,
-            # ...其他状态处理
-        }
+        self.state = "SEARCHING"  # 状态: SEARCHING, TRACKING, GRABBING
     
-    def handle_event(self, event):
-        handler = self.transitions.get(self.state)
-        if handler:
-            new_state = handler(event)
-            if new_state:
-                self.state = new_state
-                logger.info(f"状态转换: {self.state}")
-    
-    def handle_booting(self, event):
-        if event == "INIT_DONE":
-            return "CALIBRATING"
-    
-    def handle_calibrating(self, event):
-        if event == "CALIBRATION_SUCCESS":
-            return "SEARCHING"
-        elif event == "CALIBRATION_FAILED":
-            return "ERROR"
-    # ...其他状态处理
+    def process_data(self, data, node):
+        if self.state == "SEARCHING":
+            if len(data) == 0:
+                return turn_left(node, 20)  # 旋转搜索
+            else:
+                self.state = "TRACKING"
+                return self.handle_tracking(data[0], node)
+        
+        elif self.state == "TRACKING":
+            if len(data) == 0:
+                self.state = "SEARCHING"
+                return turn_left(node, 20)
+            elif self.is_ready_to_grab(data[0]):
+                self.state = "GRABBING"
+                return stop(node)
+            else:
+                return self.handle_tracking(data[0], node)
+        
+        elif self.state == "GRABBING":
+            # 抓取逻辑...
+            if grab_complete:
+                self.state = "SEARCHING"
 ```
 

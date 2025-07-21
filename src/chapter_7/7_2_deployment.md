@@ -2,21 +2,20 @@
 
 ### 系统服务配置
 
-将小车系统部署为Linux系统服务：
+管理机器人服务：
 
-```ini
-# /etc/systemd/system/car.service
+```bash
+# car.service
 [Unit]
-Description=Tennis Ball Collecting Car Service
+Description=Car Service
 After=network.target
 
 [Service]
-User=pi
-WorkingDirectory=/home/pi/tennis-car
-ExecStart=/usr/bin/python3 main.py
+User=user
+WorkingDirectory=/home/user/code/Phytium-Car-STM32-Arm
+ExecStart=python3.11 color_detect.py
 Restart=on-failure
 RestartSec=5
-Environment="DISPLAY=:0"
 
 [Install]
 WantedBy=multi-user.target
@@ -24,55 +23,40 @@ WantedBy=multi-user.target
 
 ### 日志管理系统
 
-实现多级日志记录：
+在项目中，实现多级日志记录系统：
 
 ```python
+# color_detect.py中的日志实现
 import logging
-from logging.handlers import RotatingFileHandler
+import os
 
-# 创建日志器
-logger = logging.getLogger("tennis_car")
-logger.setLevel(logging.DEBUG)
+def setup_logger():
+    logger = logging.getLogger('tennis_car')
+    logger.setLevel(logging.DEBUG)
+    
+    # 创建日志目录
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # 文件处理器
+    file_handler = logging.FileHandler(os.path.join(log_dir, "car.log"))
+    file_handler.setLevel(logging.DEBUG)
+    
+    # 控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # 日志格式
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    return logger
 
-# 文件日志 - 自动轮转
-file_handler = RotatingFileHandler(
-    "/var/log/tennis_car.log", 
-    maxBytes=10 * 1024 * 1024,  # 10MB
-    backupCount=5
-)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-))
-
-# 控制台日志
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+logger = setup_logger()
 ```
 
-### 远程监控接口
 
-通过HTTP接口提供系统状态：
-
-```python
-from flask import Flask, jsonify
-
-app = Flask(__name__)
-
-@app.route('/status')
-def system_status():
-    return jsonify({
-        "state": state_machine.state,
-        "battery": battery_monitor.voltage,
-        "position": position_estimator.position,
-        "balls_collected": ball_counter.count
-    })
-
-@app.route('/logs')
-def system_logs():
-    with open("/var/log/tennis_car.log", "r") as f:
-        return f.read()
-```
 
