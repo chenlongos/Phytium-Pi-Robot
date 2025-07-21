@@ -1,0 +1,355 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>4.1 底盘控制原理 - 飞腾派机器人开发实验指导书</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">飞腾派机器人开发实验指导书</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="41-底盘控制原理"><a class="header" href="#41-底盘控制原理">4.1 底盘控制原理</a></h1>
+<h3 id="差速转向模型实现"><a class="header" href="#差速转向模型实现">差速转向模型实现</a></h3>
+<p>差速转向是轮式移动机器人最基础也是最常用的运动控制方式。在本项目中，我们采用四轮底盘结构，其中两个主动轮分别位于左右两侧。这种设计的核心原理在于通过控制左右轮的速度差来实现转向：当左右轮以相同速度转动时，机器人直线前进；当左右轮速度不同时，机器人会向速度较慢的一侧转向。</p>
+<p><img src="../Image/chassis.jpg" alt="." /></p>
+<p>在项目中，差速转向模型通过控制左右轮速比实现：</p>
+<pre><code class="language-python"># motor/Motor.py - PCA9685Motor类
+class PCA9685Motor:
+    def __init__(self, d1, d2, d3, d4):
+        """初始化PCA9685电机控制器"""
+        self.interval = 0.05
+        self.last_time = time.time()
+        self.PCA9685_ADDRESS = 0x60  # I2C地址
+        self.bus = smbus.SMBus(2)    # 使用I2C总线2
+        
+    def Control(self, data: MoveData):
+        """控制机器人运动"""
+        # 将速度转换为PWM占空比 (0-4095)
+        speed_pwm = int(data.speed * 4095 / 100)
+        
+        # 设置所有电机相同的基础速度
+        self.set_pwm(speed_pwm, speed_pwm, speed_pwm, speed_pwm)
+        
+        # 根据方向执行不同动作
+        actions = {
+            0: self.Stop,      # 停止
+            1: self.Advance,   # 前进
+            2: self.Back,      # 后退
+            5: self.Turn_Left, # 左转
+            6: self.Turn_Right # 右转
+        }
+        
+        # 执行对应动作
+        if data.direction in actions:
+            actions[data.direction]()
+</code></pre>
+<h3 id="差速转向原理详解"><a class="header" href="#差速转向原理详解">差速转向原理详解</a></h3>
+<p>差速转向模型的核心是控制左右轮的速度差：</p>
+<ul>
+<li><strong>直线前进</strong>：左右轮速度相同</li>
+<li><strong>左转</strong>：右轮速度 &gt; 左轮速度</li>
+<li><strong>右转</strong>：左轮速度 &gt; 右轮速度</li>
+<li><strong>原地旋转</strong>：左右轮速度相等但方向相反</li>
+</ul>
+<p>通过PCA9685控制器实现这一模型：</p>
+<pre><code class="language-python"># motor/Motor.py中的转向控制实现
+class PCA9685Motor:
+    def Advance(self):
+        """前进：所有电机正转"""
+        self.Status_control(1, 1, 1, 1)
+    
+    def Back(self):
+        """后退：所有电机反转"""
+        self.Status_control(-1, -1, -1, -1)
+    
+    def Turn_Left(self):
+        """左转：右轮前进，左轮后退"""
+        self.Status_control(1, -1, 1, -1)
+    
+    def Turn_Right(self):
+        """右转：左轮前进，右轮后退"""
+        self.Status_control(-1, 1, -1, 1)
+    
+    def Status_control(self, m1, m2, m3, m4):
+        """
+        控制四个电机的状态
+        参数:
+            m1-m4: 每个电机的方向（1:正转, -1:反转, 0:停止）
+        """
+        # 设置每个电机的PWM信号
+        self.set_motor_pwm((1, 2), m1)  # 电机1
+        self.set_motor_pwm((3, 4), m2)  # 电机2
+        self.set_motor_pwm((7, 8), m3)  # 电机3
+        self.set_motor_pwm((9, 10), m4) # 电机4
+    
+    def set_motor_pwm(self, channel_pair, direction):
+        """
+        设置单个电机的PWM信号
+        参数:
+            channel_pair: 电机对应的两个通道
+            direction: 电机方向（1, -1, 0）
+        """
+        ch1, ch2 = channel_pair
+        
+        if direction == 1:  # 正转
+            self.set_channel_pwm(ch1, 0)    # 通道1低电平
+            self.set_channel_pwm(ch2, 4095)  # 通道2高电平
+        elif direction == -1:  # 反转
+            self.set_channel_pwm(ch1, 4095)  # 通道1高电平
+            self.set_channel_pwm(ch2, 0)     # 通道2低电平
+        else:  # 停止
+            self.set_channel_pwm(ch1, 0)
+            self.set_channel_pwm(ch2, 0)
+</code></pre>
+<h3 id="位姿估计实现"><a class="header" href="#位姿估计实现">位姿估计实现</a></h3>
+<p>使用编码器数据进行位姿估计：</p>
+<pre><code class="language-python"># motor/main.py - 位姿估计实现
+import math
+
+class Odometry:
+    def __init__(self, wheel_radius, wheel_base):
+        """初始化里程计"""
+        self.wheel_radius = wheel_radius  # 轮子半径（米）
+        self.wheel_base = wheel_base      # 轮距（米）
+        self.x = 0.0  # X坐标
+        self.y = 0.0  # Y坐标
+        self.theta = 0.0  # 朝向角度（弧度）
+    
+    def update(self, left_distance, right_distance):
+        """更新位姿估计"""
+        # 计算线位移和角位移
+        delta_distance = (left_distance + right_distance) / 2
+        delta_theta = (right_distance - left_distance) / self.wheel_base
+        
+        # 更新位姿
+        self.x += delta_distance * math.cos(self.theta + delta_theta / 2)
+        self.y += delta_distance * math.sin(self.theta + delta_theta / 2)
+        self.theta += delta_theta
+        
+        # 归一化角度到[-π, π]范围
+        self.theta = (self.theta + math.pi) % (2 * math.pi) - math.pi
+        
+        return self.x, self.y, self.theta
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../chapter_4/chapter4.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../chapter_4/4_2_driver_circuit.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../chapter_4/chapter4.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../chapter_4/4_2_driver_circuit.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+
+    </div>
+    </body>
+</html>
