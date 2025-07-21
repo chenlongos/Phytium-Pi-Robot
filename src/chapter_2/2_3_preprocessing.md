@@ -1,4 +1,22 @@
 # 2.3 图像预处理技术详解
+**处理过程**
+
+```
+在color_detect.py中，ColorDetector类的process方法包含以下步骤：
+
+1. 高斯模糊降噪：使用cv2.GaussianBlur(frame, (5, 5), 0)
+2. 中值滤波：使用cv2.medianBlur(blurred_img, 5)
+3. 转换到HSV颜色空间
+4. 创建颜色掩膜：cv2.inRange
+5. 形态学操作（开运算、闭运算等）：
+
+开运算：cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+闭运算：cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=3)
+ 再次开运算：cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
+ 高斯模糊：cv2.GaussianBlur(mask, (5, 5), 0)
+ 
+ 另外，在掩膜处理之后，又使用了一次高斯模糊（在掩膜图像上），这也可以看作是一种降噪或平滑处理。
+```
 
 ### 高斯模糊降噪
 
